@@ -1,0 +1,68 @@
+name: Auto Label PR by Title
+
+# Trigger when PR is opened, edited, or reopened
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    
+    # Required permissions to modify PR labels
+    permissions:
+      pull-requests: write
+      issues: write
+    
+    steps:
+      - name: Auto Label PR Based on Title
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get the PR title and convert to lowercase
+            const prTitle = context.payload.pull_request.title.toLowerCase();
+            const prNumber = context.payload.pull_request.number;
+            
+            console.log(`📝 Analyzing PR #${prNumber}: "${context.payload.pull_request.title}"`);
+            
+            // Array to collect labels to add
+            let labelsToAdd = [];
+            
+            // Check for "feature" keywords
+            if (prTitle.includes('feature') || prTitle.includes('feat')) {
+              labelsToAdd.push('feature');
+              console.log('✅ Detected: feature');
+            }
+            
+            // Check for "bugfix" keywords
+            if (prTitle.includes('bugfix') || prTitle.includes('fix') || prTitle.includes('bug')) {
+              labelsToAdd.push('bugfix');
+              console.log('✅ Detected: bugfix');
+            }
+            
+            // If no keywords found, exit
+            if (labelsToAdd.length === 0) {
+              console.log('ℹ️ No recognized keywords found in PR title');
+              core.notice('No keywords detected. Consider using "feature" or "bugfix" in your PR title.');
+              return;
+            }
+            
+            // Add labels using GitHub API
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: labelsToAdd
+              });
+              
+              console.log(`🏷️ Successfully added labels: ${labelsToAdd.join(', ')}`);
+              core.notice(`Auto-labeled PR with: ${labelsToAdd.join(', ')}`);
+              
+            } catch (error) {
+              console.error('❌ Error adding labels:', error.message);
+              core.setFailed(`Failed to add labels: ${error.message}`);
+            }
