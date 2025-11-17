@@ -1,1 +1,1 @@
-speling eror
+spelling error
