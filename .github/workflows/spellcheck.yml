@@ -1,1 +1,69 @@
+name: Spell Check README
 
+# Trigger this workflow on push or pull request to main branch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'README.md'  # Only run when README.md changes
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'README.md'
+
+# Define the jobs to run
+jobs:
+  spellcheck:
+    # Run on Ubuntu (Linux) runner
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      # Step 3: Install codespell
+      - name: Install Codespell
+        run: |
+          python -m pip install --upgrade pip
+          pip install codespell
+          
+      # Step 4: Run spell check on README.md
+      - name: Run Spell Check
+        id: spellcheck
+        continue-on-error: true
+        run: |
+          echo "Running spell check on README.md..."
+          codespell README.md --ignore-words-list=som,word,list 2>&1 | tee spellcheck_output.txt
+          
+          # Capture exit code
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          
+      # Step 5: Display results
+      - name: Display Results
+        run: |
+          if [ "${{ steps.spellcheck.outputs.exit_code }}" -eq "0" ]; then
+            echo "✅ SUCCESS: No spelling errors found in README.md!"
+            echo "::notice::Your README.md is spell-check clean! 🎉"
+          else
+            echo "⚠️ WARNING: Spelling errors detected in README.md"
+            echo "::warning::Spelling issues found. Please review the output above."
+            cat spellcheck_output.txt
+          fi
+          
+      # Step 6: Upload spell check results as artifact (optional)
+      - name: Upload Spell Check Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spellcheck-results
+          path: spellcheck_output.txt
