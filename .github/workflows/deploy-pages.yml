@@ -1,0 +1,99 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get build info
+        id: info
+        run: |
+          echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "count=$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
+          echo "author=$(git log -1 --pretty=format:'%an')" >> $GITHUB_OUTPUT
+          echo "message=$(git log -1 --pretty=%B | head -1)" >> $GITHUB_OUTPUT
+      
+      - name: Create HTML page
+        run: |
+          cat > index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>Deployment Info</title>
+              <style>
+                  body {
+                      font-family: Arial, sans-serif;
+                      max-width: 800px;
+                      margin: 50px auto;
+                      padding: 20px;
+                      background: #f5f5f5;
+                  }
+                  .container {
+                      background: white;
+                      padding: 30px;
+                      border-radius: 10px;
+                      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                  }
+                  h1 { color: #333; }
+                  .info { margin: 20px 0; }
+                  .label { font-weight: bold; color: #666; }
+                  .value { color: #333; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🚀 Deployment Info</h1>
+                  <div class="info">
+                      <span class="label">📅 Deployed:</span>
+                      <span class="value">DEPLOY_DATE</span>
+                  </div>
+                  <div class="info">
+                      <span class="label">📝 Commit:</span>
+                      <span class="value">COMMIT_SHA</span>
+                  </div>
+                  <div class="info">
+                      <span class="label">🔢 Build:</span>
+                      <span class="value">#BUILD_COUNT</span>
+                  </div>
+                  <div class="info">
+                      <span class="label">👤 Author:</span>
+                      <span class="value">COMMIT_AUTHOR</span>
+                  </div>
+                  <div class="info">
+                      <span class="label">💬 Message:</span>
+                      <span class="value">COMMIT_MESSAGE</span>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+          
+          sed -i "s|DEPLOY_DATE|${{ steps.info.outputs.date }}|g" index.html
+          sed -i "s|COMMIT_SHA|${{ steps.info.outputs.sha }}|g" index.html
+          sed -i "s|BUILD_COUNT|${{ steps.info.outputs.count }}|g" index.html
+          sed -i "s|COMMIT_AUTHOR|${{ steps.info.outputs.author }}|g" index.html
+          sed -i "s|COMMIT_MESSAGE|${{ steps.info.outputs.message }}|g" index.html
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
